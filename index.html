@@ -32,6 +32,7 @@
     font-family: 'Inter', system-ui, sans-serif;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
+    transition: background 0.3s ease;
   }
 
   /* MAXIMIERTE VISUELLE TRENNUNG DURCH REINES FLEX-GRID */
@@ -352,6 +353,59 @@
     color: #7ab3ff;
     font-weight: 500;
   }
+
+  /* ── BACKGROUND COLOR SWITCHER ── */
+  .bg-switcher-container {
+    position: fixed;
+    bottom: 15px;
+    right: 15px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .bg-switcher-btn {
+    background: var(--bg2);
+    border: 1px solid var(--border-strong);
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .bg-switcher-btn:hover {
+    color: var(--text);
+    transform: scale(1.08);
+  }
+  .bg-palette {
+    display: none;
+    background: var(--bg2);
+    border: 1px solid var(--border-strong);
+    padding: 8px;
+    border-radius: 20px;
+    gap: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  }
+  .bg-palette.show {
+    display: flex;
+  }
+  .bg-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.25);
+    transition: transform 0.15s ease;
+  }
+  .bg-dot:hover {
+    transform: scale(1.25);
+  }
 </style>
 </head>
 <body>
@@ -446,6 +500,22 @@
     </div>
   </div>
 
+</div>
+
+<div class="bg-switcher-container">
+  <div class="bg-palette" id="bgPalette">
+    <div class="bg-dot" style="background: #0b0d12;" title="Original Schwarz" onclick="changeBgColor('#0b0d12')"></div>
+    <div class="bg-dot" style="background: #0f172a;" title="Dunkelblau 1" onclick="changeBgColor('#0f172a')"></div>
+    <div class="bg-dot" style="background: #1e3a8a;" title="Dunkelblau 2" onclick="changeBgColor('#1e3a8a')"></div>
+    <div class="bg-dot" style="background: #2563eb;" title="Klassisch Blau" onclick="changeBgColor('#2563eb')"></div>
+    <div class="bg-dot" style="background: #0284c7;" title="Hellblau" onclick="changeBgColor('#0284c7')"></div>
+    <div class="bg-dot" style="background: #111827;" title="Graphit" onclick="changeBgColor('#111827')"></div>
+    <div class="bg-dot" style="background: #312e81;" title="Indigo" onclick="changeBgColor('#312e81')"></div>
+    <div class="bg-dot" style="background: #064e3b;" title="Dunkelgrün" onclick="changeBgColor('#064e3b')"></div>
+    <div class="bg-dot" style="background: #581c87;" title="Muted Purple" onclick="changeBgColor('#581c87')"></div>
+    <div class="bg-dot" style="background: #7c2d12;" title="Terrakotta" onclick="changeBgColor('#7c2d12')"></div>
+  </div>
+  <button class="bg-switcher-btn" id="bgToggleBtn" onclick="toggleBgPalette()">🎨</button>
 </div>
 
 <script>
@@ -562,14 +632,13 @@ function formatClockTime(dateObj) {
 }
 
 async function fetchDepartures() {
+  const depBody = document.getElementById('dep-body');
   try {
-    // CORS Anywhere Proxy umgeht die Sperre bei lokaler Ausführung (file:///)
     const proxy = 'https://cors-anywhere.herokuapp.com/';
     const baseLocationUrl = 'https://v6.vbb.transport.rest/locations?query=' + encodeURIComponent(STOP_NAME) + '&results=1';
     
     let stationRes = await fetch(baseLocationUrl);
     if (!stationRes.ok) {
-      // Fallback über Proxy falls direkt blockiert
       stationRes = await fetch(proxy + baseLocationUrl);
     }
     
@@ -588,12 +657,11 @@ async function fetchDepartures() {
     const deps = d.departures || d;
 
     if (!deps || deps.length === 0) {
-      document.getElementById('dep-body').innerHTML =
+      depBody.innerHTML =
         '<tr class="loading-row"><td colspan="3" style="color:var(--muted)">Keine Abfahrten in den nächsten 90 Min</td></tr>';
       return;
     }
 
-    // Filter auf Köpenick oder Weißensee (Mahlsdorf wird ignoriert)
     const filteredDeps = deps.filter(dep => {
       const destName = (dep.destination && dep.destination.name) ? dep.destination.name.toLowerCase() : '';
       const directionName = dep.direction ? dep.direction.toLowerCase() : '';
@@ -606,7 +674,7 @@ async function fetchDepartures() {
     });
 
     if (filteredDeps.length === 0) {
-      document.getElementById('dep-body').innerHTML =
+      depBody.innerHTML =
         '<tr class="loading-row"><td colspan="3" style="color:var(--muted)">Keine passenden Fahrten gefunden</td></tr>';
       return;
     }
@@ -638,7 +706,6 @@ async function fetchDepartures() {
         let imminentClass = diffMin <= 1 ? ' imminent' : '';
         const delayHtml = delay > 0 ? `+${delay} min` : '&nbsp;';
 
-        // PRÄZISER REAL LIFE AUFBAU: LINIE | RICHTUNG | ZEIT RECHTS BÜNDIG
         return `<tr>
           <td><span class="line-badge ${css}">${name}</span></td>
           <td class="dest-col">${rawDir}</td>
@@ -652,21 +719,51 @@ async function fetchDepartures() {
         </tr>`;
       }).join('');
 
-    document.getElementById('dep-body').innerHTML = rows;
+    depBody.innerHTML = rows;
 
   } catch(e) {
-    document.getElementById('dep-body').innerHTML = `
-      <tr class="loading-row">
-        <td colspan="3" style="color:var(--muted);font-size:13px;">
-          ⚠️ Abfahrten temporär nicht verfügbar<br>
-          <span style="font-size:11px; opacity:0.5;">Fahrplan-Server blockiert lokale file:/// Anfragen</span>
-        </td>
-      </tr>`;
+    console.warn('Verbindungsfehler zur API. Behalte alte Daten bei.', e);
+    // Nur Fehlermeldung anzeigen, wenn die Tabelle noch im Ladezustand oder komplett leer ist.
+    if (depBody.innerHTML.includes('Verbinde mit VBB…') || depBody.innerHTML.trim() === '') {
+      depBody.innerHTML = `
+        <tr class="loading-row">
+          <td colspan="3" style="color:var(--muted);font-size:13px;">
+            ⚠️ Abfahrten temporär nicht verfügbar<br>
+            <span style="font-size:11px; opacity:0.5;">Wird im Hintergrund automatisch erneut versucht...</span>
+          </td>
+        </tr>`;
+    }
   }
 }
 
 fetchDepartures();
-setInterval(fetchDepartures, 20 * 1000);
+// Intervall auf 45 Sekunden erhöht um Server-Sperren via GitHub Pages vorzubeugen
+setInterval(fetchDepartures, 45 * 1000);
+
+
+// ─── BACKGROUND SWITCHER FUNCTIONALITY ────────────────────────
+function toggleBgPalette() {
+  document.getElementById('bgPalette').classList.toggle('show');
+}
+
+function changeBgColor(color) {
+  document.documentElement.style.setProperty('--bg', color);
+  localStorage.setItem('selectedDashboardBg', color);
+}
+
+// Gespeicherte Farbe laden
+const savedBg = localStorage.getItem('selectedDashboardBg');
+if (savedBg) {
+  changeBgColor(savedBg);
+}
+
+// Schließen der Palette, wenn man außerhalb klickt
+document.addEventListener('click', function(e) {
+  const container = document.querySelector('.bg-switcher-container');
+  if (!container.contains(e.target)) {
+    document.getElementById('bgPalette').classList.remove('show');
+  }
+});
 </script>
 </body>
 </html>

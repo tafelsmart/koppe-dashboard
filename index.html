@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KOPPE</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0b0d12;
+    --bg2: #13161e;
+    --bg3: #1a1e2a;
+    --border: rgba(255,255,255,0.07);
+    --text: #f0f2f8;
+    --muted: rgba(240,242,248,0.45);
+    --accent: #4f8ef7;
+    --accent2: #7ab3ff;
+    --tram: #e8552a;
+    --bus: #6db56d;
+    --sbahn: #3fa35e;
+    --ubahn: #2b6fce;
+    --warm: #f9c74f;
+    --warning: #ff5252;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    width: 100vw;
+    height: 100vh;
+    padding: 28px 28px 20px;
+    gap: 0;
+  }
+
+  .divider-v { background: var(--border); margin: 0 24px; }
+
+  .left { grid-column: 1; display: flex; flex-direction: column; gap: 0; }
+  .right { grid-column: 3; display: flex; flex-direction: column; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .logo {
+    font-size: 52px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .station-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 20px;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+  }
+
+  .alert-banner {
+    display: none;
+    background: linear-gradient(90deg, #d32f2f, #b71c1c);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+    animation: alertPulse 2s infinite ease-in-out;
+  }
+  @keyframes alertPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+
+  .departures { flex: 1; display: flex; flex-direction: column; }
+  .dep-table { width: 100%; border-collapse: collapse; }
+  .dep-table thead tr th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 0 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .dep-table thead tr th:first-child { width: 85px; }
+  .dep-table thead tr th:nth-child(2) { width: 90px; }
+  .dep-table tbody tr { border-bottom: 1px solid var(--border); }
+  .dep-table tbody tr td { padding: 11px 0; font-size: 18px; vertical-align: middle; }
+  
+  .time-col {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .time-col.imminent { color: var(--warm); }
+  .time-col.soon { color: #f4a261; }
+
+  .line-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 700;
+    min-width: 55px;
+  }
+  .line-tram { background: var(--tram); color: #fff; }
+  .line-bus { background: var(--bus); color: #fff; }
+  .line-sbahn { background: var(--sbahn); color: #fff; }
+  .line-ubahn { background: var(--ubahn); color: #fff; }
+  .line-default { background: var(--bg3); color: var(--text); }
+
+  .dest-col {
+    font-size: 17px;
+    padding-left: 14px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
+    width: 99%;
+  }
+  .delay-badge { font-size: 11px; font-weight: 600; color: #e05555; margin-left: 6px; }
+  .loading-row td { padding: 28px 0; color: var(--muted); font-size: 14px; }
+
+  .live-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #4caf50;
+    margin-right: 8px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .live-dot.error { background: #e05555; animation: none; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .status-text { font-size: 11px; color: var(--muted); display: flex; align-items: center; }
+
+  /* RIGHT */
+  .clock-row { display: flex; align-items: baseline; justify-content: flex-end; gap: 4px; }
+  .clock { font-family: 'JetBrains Mono', monospace; font-size: 52px; font-weight: 700; line-height: 1; }
+  .clock-seconds { font-family: 'JetBrains Mono', monospace; font-size: 26px; color: var(--muted); }
+  .date-text { font-size: 12px; color: var(--muted); text-align: right; margin: 4px 0 20px; letter-spacing: 0.04em; }
+
+  .weather-main { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+  .weather-icon { font-size: 64px; line-height: 1; }
+  .temp-main { font-size: 52px; font-weight: 700; line-height: 1; }
+  .temp-main span { font-size: 28px; font-weight: 400; color: var(--muted); }
+  .temp-range { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .temp-feels { font-size: 13px; color: var(--muted); }
+  .weather-desc { font-size: 17px; font-weight: 500; margin-bottom: 12px; }
+
+  .sun-event-banner {
+    display: none;
+    background: rgba(249, 199, 79, 0.12);
+    border: 1px solid rgba(249, 199, 79, 0.3);
+    color: var(--warm);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 14px;
+  }
+
+  .rain-section { margin-bottom: 16px; }
+  .rain-label-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+  .rain-pct { font-size: 22px; font-weight: 700; color: var(--accent2); }
+  .rain-bar-wrap { background: var(--bg3); border-radius: 6px; height: 8px; overflow: hidden; margin-top: 6px; }
+  .rain-bar-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), #7ab3ff); transition: width 0.5s ease; }
+
+  .weather-details { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .detail-pill { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 8px; }
+  .detail-icon { font-size: 20px; }
+  .detail-label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+  .detail-value { font-size: 15px; font-weight: 600; }
+
+  .hourly-label { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .hourly-row { display: flex; gap: 8px; overflow: hidden; }
+  .hour-card { flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
+  .hour-card.now { border-color: var(--accent); background: rgba(79,142,247,0.08); }
+  .hour-time { font-size: 11px; font-weight: 600; color: var(--muted); }
+  .hour-icon { font-size: 22px; line-height: 1; }
+  .hour-temp { font-size: 14px; font-weight: 600; }
+  .hour-rain { font-size: 10px; color: #7ab3ff; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="grid">
+  <div class="left">
+    <div class="logo">KOPPE</div>
+    <div class="station-name"><span class="live-dot" id="depDot"></span>Abfahrten: Unter den Birken</div>
+    <div class="departures">
+      <table class="dep-table">
+        <thead><tr><th>Zeit</th><th>Linie</th><th>Richtung</th></tr></thead>
+        <tbody id="dep-body"><tr class="loading-row"><td colspan="3">Verbinde mit VBB-Server...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="status-bar"><span class="status-text" id="dep-updated">–</span></div>
+  </div>
+
+  <div class="divider-v"></div>
+
+  <div class="right">
+    <div class="clock-row"><div class="clock" id="clock">00:00</div><div class="clock-seconds" id="clock-sec">00</div></div>
+    <div class="date-text" id="date-text">–</div>
+    <div id="alert-banner" class="alert-banner">⚠️ UNWETTERWARNUNG</div>
+    <div class="section-label">Wetter · Berlin-Köpenick</div>
+    <div class="weather-main">
+      <div class="weather-icon" id="w-icon">⏳</div>
+      <div class="weather-temps">
+        <div class="temp-main" id="w-temp">–<span>°C</span></div>
+        <div class="temp-range" id="w-range">Min –°C / Max –°C</div>
+        <div class="temp-feels" id="w-feels">Gefühlt wie –°C</div>
+      </div>
+    </div>
+    <div class="weather-desc" id="w-desc">Lade Wetterdaten…</div>
+    <div id="sun-event-banner" class="sun-event-banner">🌅 Sonnenereignis</div>
+    <div class="rain-section">
+      <div class="rain-label-row"><span>Regenwahrscheinlichkeit (akt. Stunde)</span><span class="rain-pct" id="w-rain">–%</span></div>
+      <div class="rain-bar-wrap"><div class="rain-bar-fill" id="rain-bar" style="width:0%"></div></div>
+    </div>
+    <div class="weather-details">
+      <div class="detail-pill"><span class="detail-icon">💨</span><div><div class="detail-label">Wind</div><div class="detail-value" id="w-wind">–</div></div></div>
+      <div class="detail-pill"><span class="detail-icon">💧</span><div><div class="detail-label">Luftfeuchte</div><div class="detail-value" id="w-humidity">–</div></div></div>
+      <div class="detail-pill"><span class="detail-icon">👁️</span><div><div class="detail-label">UV-Index</div><div class="detail-value" id="w-uv">–</div></div></div>
+      <div class="detail-pill"><span class="detail-icon">🌧️</span><div><div class="detail-label">Niederschlag</div><div class="detail-value" id="w-precip">–</div></div></div>
+    </div>
+    <div class="hourly-label">Nächste Stunden</div>
+    <div class="hourly-row" id="hourly-row"></div>
+  </div>
+</div>
+
+<script>
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('clock-sec').textContent = String(now.getSeconds()).padStart(2,'0');
+  const days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+  const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  document.getElementById('date-text').textContent = days[now.getDay()] + ', ' + now.getDate() + '. ' + months[now.getMonth()] + ' ' + now.getFullYear();
+}
+updateClock(); setInterval(updateClock, 1000);
+
+const WMO_MAP = {
+  0: { icon: '☀️', desc: 'Klarer Himmel' }, 1: { icon: '🌤️', desc: 'Überwiegend klar' }, 2: { icon: '⛅', desc: 'Teilweise bedeckt' }, 3: { icon: '☁️', desc: 'Bedeckt' },
+  45: { icon: '🌫️', desc: 'Nebel' }, 48: { icon: '🌫️', desc: 'Gefriernebel' }, 51: { icon: '🌦️', desc: 'Leichter Nieselregen' }, 53: { icon: '🌧️', desc: 'Nieselregen' },
+  55: { icon: '🌧️', desc: 'Starker Nieselregen' }, 61: { icon: '🌦️', desc: 'Leichter Regen' }, 63: { icon: '🌧️', desc: 'Regen' }, 65: { icon: '⛈️', desc: 'Starker Regen' },
+  71: { icon: '🌨️', desc: 'Leichter Schneefall' }, 73: { icon: '❄️', desc: 'Schneefall' }, 75: { icon: '❄️', desc: 'Starker Schneefall' }, 80: { icon: '🌦️', desc: 'Leichte Regenschauer' },
+  81: { icon: '🌧️', desc: 'Regenschauer' }, 82: { icon: '⛈️', desc: 'Starke Regenschauer' }, 95: { icon: '🌩️', desc: 'Gewitter' }, 96: { icon: '⛈️', desc: 'Gewitter mit Hagel' }, 99: { icon: '⛈️', desc: 'Starkes Gewitter' }
+};
+
+async function fetchWeather() {
+  try {
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=52.4453&longitude=13.5764&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m,precipitation,uv_index&hourly=temperature_2m,weather_code,precipitation_probability&daily=temperature_2m_min,temperature_2m_max,sunrise,sunset&timezone=Europe%2FBerlin&wind_speed_unit=kmh`);
+    const d = await res.json(); const c = d.current; const wInfo = WMO_MAP[c.weather_code] || { icon: '🌡️', desc: 'Unbekannt' };
+    document.getElementById('w-temp').innerHTML = Math.round(c.temperature_2m) + '<span>°C</span>';
+    document.getElementById('w-feels').textContent = 'Gefühlt wie ' + Math.round(c.apparent_temperature) + '°C';
+    document.getElementById('w-range').textContent = `Min ${Math.round(d.daily.temperature_2m_min[0])}°C / Max ${Math.round(d.daily.temperature_2m_max[0])}°C`;
+    document.getElementById('w-icon').textContent = wInfo.icon; document.getElementById('w-desc').textContent = wInfo.desc;
+    document.getElementById('w-wind').textContent = Math.round(c.wind_speed_10m) + ' km/h'; document.getElementById('w-humidity').textContent = Math.round(c.relative_humidity_2m) + '%';
+    document.getElementById('w-uv').textContent = Math.round(c.uv_index); document.getElementById('w-precip').textContent = c.precipitation.toFixed(1) + ' mm';
+    const nowH = new Date().getHours(); const nowIdx = d.hourly.time.findIndex(t => new Date(t).getHours() === nowH);
+    const rainPct = nowIdx >= 0 ? Math.round(d.hourly.precipitation_probability[nowIdx]) : 0;
+    document.getElementById('w-rain').textContent = rainPct + '%'; document.getElementById('rain-bar').style.width = rainPct + '%';
+    const alertBanner = document.getElementById('alert-banner');
+    if ([65, 75, 82, 95, 96, 99].includes(c.weather_code) || c.wind_speed_10m > 65) {
+      alertBanner.style.display = 'block'; alertBanner.textContent = `⚠️ UNWETTERWARNUNG: ${wInfo.desc.toUpperCase()}`;
+    } else { alertBanner.style.display = 'none'; }
+    const now = new Date(); const sunrise = new Date(d.daily.sunrise[0]); const sunset = new Date(d.daily.sunset[0]); const sunBanner = document.getElementById('sun-event-banner');
+    if (Math.abs(now - sunrise) <= 7200000) {
+      sunBanner.style.display = 'block'; sunBanner.textContent = `🌅 Sonnenaufgang um ${String(sunrise.getHours()).padStart(2,'0')}:${String(sunrise.getMinutes()).padStart(2,'0')} Uhr`;
+    } else if (Math.abs(now - sunset) <= 7200000) {
+      sunBanner.style.display = 'block'; sunBanner.textContent = `🌇 Sonnenuntergang um ${String(sunset.getHours()).padStart(2,'0')}:${String(sunset.getMinutes()).padStart(2,'0')} Uhr`;
+    } else { sunBanner.style.display = 'none'; }
+    const start = nowIdx >= 0 ? nowIdx : 0; const cards = [];
+    for (let i = 0; i < 7; i++) {
+      const idx = start + i; if (idx >= d.hourly.time.length) break; const t = new Date(d.hourly.time[idx]); const cardInfo = WMO_MAP[d.hourly.weather_code[idx]] || { icon: '🌡️' };
+      cards.push(`<div class="hour-card ${i===0?'now':''}"><div class="hour-time">${i===0?'Jetzt':String(t.getHours()).padStart(2,'0')+':00'}</div><div class="hour-icon">${cardInfo.icon}</div><div class="hour-temp">${Math.round(d.hourly.temperature_2m[idx])}°</div><div class="hour-rain">${Math.round(d.hourly.precipitation_probability[idx])}%</div></div>`);
+    }
+    document.getElementById('hourly-row').innerHTML = cards.join('');
+  } catch(e) { document.getElementById('w-desc').textContent = 'Wetterdaten temporär offline'; }
+}
+
+function getLineClass(line, product) {
+  if (!line) return 'line-default'; const p = (product || '').toLowerCase(); const l = line.toUpperCase();
+  if (p === 'tram' || l.startsWith('M') || (/^\d+$/.test(l) && parseInt(l) < 100)) return 'line-tram';
+  if (p === 'bus' || l.startsWith('X') || l.startsWith('N')) return 'line-bus';
+  if (p === 'suburban' || l.startsWith('S')) return 'line-sbahn';
+  if (p === 'subway' || l.startsWith('U')) return 'line-ubahn';
+  return 'line-default';
+}
+
+async function fetchDepartures() {
+  const dot = document.getElementById('depDot');
+  try {
+    const res = await fetch(`https://v6.vbb.transport.rest/stops/900194003/departures?results=15&duration=60&remarks=false`);
+    if (!res.ok) throw new Error(); const deps = await res.json();
+    if (!deps || deps.length === 0) {
+      document.getElementById('dep-body').innerHTML = '<tr><td colspan="3" style="color:var(--muted);padding:20px 0;">Keine aktuellen Abfahrten</td></tr>'; return;
+    }
+    const rows = deps.filter(d => d.when || d.plannedWhen).slice(0, 8).map(d => {
+      const when = d.when || d.plannedWhen; const delay = d.delay || 0; const mins = Math.round((new Date(when) - Date.now()) / 60000);
+      const t = new Date(when); const timeStr = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+      const lineName = d.line?.name || '?'; const cls = getLineClass(lineName, d.line?.product); const dest = d.destination?.name || '–';
+      let timeClass = 'time-col'; if (mins <= 2) timeClass += ' imminent'; else if (mins <= 5) timeClass += ' soon';
+      const delayHtml = delay > 60 ? `<span class="delay-badge">+${Math.round(delay/60)}m</span>` : '';
+      return `<tr><td class="${timeClass}">${timeStr}${delayHtml}</td><td><span class="line-badge ${cls}">${lineName}</span></td><td class="dest-col">${dest}</td></tr>`;
+    }).join('');
+    document.getElementById('dep-body').innerHTML = rows; dot.className = 'live-dot';
+    const n = new Date(); document.getElementById('dep-updated').innerHTML = `<span class="live-dot"></span>Live-Abgleich: ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')} Uhr`;
+  } catch(e) {
+    dot.className = 'live-dot error';
+    document.getElementById('dep-body').innerHTML = '<tr><td colspan="3" style="color:var(--warning);font-size:13px;padding:20px 0;">Verbindungsaufbau zu VBB gescheitert.<br><small style="color:var(--muted)">Wird via GitHub Pages automatisch gelöst.</small></td></tr>';
+  }
+}
+
+fetchWeather(); fetchDepartures();
+setInterval(fetchDepartures, 30000); setInterval(fetchWeather, 600000);
+</script>
+</body>
+</html>

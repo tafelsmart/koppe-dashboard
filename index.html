@@ -222,7 +222,7 @@
     <div class="departures">
       <table class="dep-table">
         <thead><tr><th>Zeit</th><th>Linie</th><th>Richtung</th></tr></thead>
-        <tbody id="dep-body"><tr class="loading-row"><td colspan="3">Verbinde mit VBB-Server...</td></tr></tbody>
+        <tbody id="dep-body"><tr class="loading-row"><td colspan="3">Verbinde mit Server...</td></tr></tbody>
       </table>
     </div>
     <div class="status-bar"><span class="status-text" id="dep-updated">–</span></div>
@@ -311,36 +311,55 @@ async function fetchWeather() {
   } catch(e) { document.getElementById('w-desc').textContent = 'Wetterdaten temporär offline'; }
 }
 
-function getLineClass(line, product) {
-  if (!line) return 'line-default'; const p = (product || '').toLowerCase(); const l = line.toUpperCase();
-  if (p === 'tram' || l.startsWith('M') || (/^\d+$/.test(l) && parseInt(l) < 100)) return 'line-tram';
-  if (p === 'bus' || l.startsWith('X') || l.startsWith('N')) return 'line-bus';
-  if (p === 'suburban' || l.startsWith('S')) return 'line-sbahn';
-  if (p === 'subway' || l.startsWith('U')) return 'line-ubahn';
+function getLineClass(line, mode) {
+  if (!line) return 'line-default';
+  const l = line.toUpperCase();
+  const m = (mode || '').toLowerCase();
+  if (m === 'tram' || l.startsWith('M') || (/^\d+$/.test(l) && parseInt(l) < 100)) return 'line-tram';
+  if (m === 'bus' || l.startsWith('X') || l.startsWith('N')) return 'line-bus';
+  if (l.startsWith('S')) return 'line-sbahn';
+  if (l.startsWith('U')) return 'line-ubahn';
   return 'line-default';
 }
 
 async function fetchDepartures() {
   const dot = document.getElementById('depDot');
   try {
-    const res = await fetch(`https://v6.vbb.transport.rest/stops/900194003/departures?results=15&duration=60&remarks=false`);
-    if (!res.ok) throw new Error(); const deps = await res.json();
+    // VPN-tolerante, stabile DB/HAFAS-Proxy-Schnittstelle (Unter den Birken ID: 8089146 / 90194003)
+    const res = await fetch(`https://db.joli.dev/stops/90194003/departures?duration=60&results=15`);
+    if (!res.ok) throw new Error(); 
+    const deps = await res.json();
+    
     if (!deps || deps.length === 0) {
       document.getElementById('dep-body').innerHTML = '<tr><td colspan="3" style="color:var(--muted);padding:20px 0;">Keine aktuellen Abfahrten</td></tr>'; return;
     }
+    
     const rows = deps.filter(d => d.when || d.plannedWhen).slice(0, 8).map(d => {
-      const when = d.when || d.plannedWhen; const delay = d.delay || 0; const mins = Math.round((new Date(when) - Date.now()) / 60000);
-      const t = new Date(when); const timeStr = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
-      const lineName = d.line?.name || '?'; const cls = getLineClass(lineName, d.line?.product); const dest = d.destination?.name || '–';
-      let timeClass = 'time-col'; if (mins <= 2) timeClass += ' imminent'; else if (mins <= 5) timeClass += ' soon';
-      const delayHtml = delay > 60 ? `<span class="delay-badge">+${Math.round(delay/60)}m</span>` : '';
+      const when = d.when || d.plannedWhen; 
+      const delay = d.delay || 0; 
+      const mins = Math.round((new Date(when) - Date.now()) / 60000);
+      const t = new Date(when); 
+      const timeStr = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+      
+      const lineName = d.line?.name || '?'; 
+      const cls = getLineClass(lineName, d.line?.mode); 
+      const dest = d.destination?.name || '–';
+      
+      let timeClass = 'time-col'; 
+      if (mins <= 2) timeClass += ' imminent'; 
+      else if (mins <= 5) timeClass += ' soon';
+      
+      const delayHtml = delay > 0 ? `<span class="delay-badge">+${delay}m</span>` : '';
       return `<tr><td class="${timeClass}">${timeStr}${delayHtml}</td><td><span class="line-badge ${cls}">${lineName}</span></td><td class="dest-col">${dest}</td></tr>`;
     }).join('');
-    document.getElementById('dep-body').innerHTML = rows; dot.className = 'live-dot';
-    const n = new Date(); document.getElementById('dep-updated').innerHTML = `<span class="live-dot"></span>Live-Abgleich: ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')} Uhr`;
+    
+    document.getElementById('dep-body').innerHTML = rows; 
+    dot.className = 'live-dot';
+    const n = new Date(); 
+    document.getElementById('dep-updated').innerHTML = `<span class="live-dot"></span>Live-Abgleich: ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')} Uhr`;
   } catch(e) {
     dot.className = 'live-dot error';
-    document.getElementById('dep-body').innerHTML = '<tr><td colspan="3" style="color:var(--warning);font-size:13px;padding:20px 0;">Verbindungsaufbau zu VBB gescheitert.<br><small style="color:var(--muted)">Wird via GitHub Pages automatisch gelöst.</small></td></tr>';
+    document.getElementById('dep-body').innerHTML = '<tr><td colspan="3" style="color:var(--warning);font-size:13px;padding:20px 0;">Schnittstellen-Fehler.<br><small style="color:var(--muted)">Eure Exzellenz, bitte den Code aktualisieren.</small></td></tr>';
   }
 }
 
